@@ -1,56 +1,75 @@
 package br.com.fiap.roupas.builder;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
+import com.itextpdf.text.*;
+import com.itextpdf.text.Font.FontFamily;
+import com.itextpdf.text.pdf.PdfWriter;
+import lombok.Setter;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
+
+import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-
-import com.itextpdf.text.Document;
-import com.itextpdf.text.DocumentException;
-import com.itextpdf.text.Font;
-import com.itextpdf.text.Font.FontFamily;
-import com.itextpdf.text.Paragraph;
-import com.itextpdf.text.pdf.PdfWriter;
-
-import lombok.Setter;
+import java.util.Optional;
 
 @Setter
 public class TextPDFBuilder {
 
-	private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd-hh-mm-ss-SSS");
+    private String text;
 
-	private String text;
+    private File file;
 
-	public byte[] build() {
-		File file = new File(String.format("./temp/%s.pdf", DATE_TIME_FORMATTER.format(LocalDateTime.now())));
-		file.getParentFile().mkdirs();
-		Document document = new Document();
-		try {
-			PdfWriter writer = PdfWriter.getInstance(document, new FileOutputStream(file));
-			document.open();
-			
-			Font font = new Font(FontFamily.COURIER, 8);
 
-			document.add(new Paragraph(text, font));
+    public Optional<byte[]> build() {
+        generateFilePDF(file);
+        return extractBinaryFile(file);
+    }
 
-			document.addSubject("Cupom Fiscal (CCF)");
+    private Optional<byte[]> extractBinaryFile(File file) {
+        if (!file.exists() || !file.isFile()) {
+            return Optional.empty();
+        }
 
-			document.addKeywords("Ferramentas utilit·rias");
+        try (InputStream inputStream = new FileInputStream(file)) {
+            byte[] binary = IOUtils.toByteArray(inputStream);
+            return Optional.of(binary);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-			document.addCreator("FIAP");
-			document.addCreator("30SCJ");
+    private void generateFilePDF(File file) {
+        file.getParentFile().mkdirs();
 
-			document.addAuthor("AndrÈ");
-			document.addAuthor("Eduardo");
-			document.addAuthor("Fernando");
-			document.addAuthor("Marcos");
-		} catch (FileNotFoundException | DocumentException e) {
-			throw new RuntimeException(e);
-		} finally {
-			document.close();
-		}
-		return null;
-	}
+        int totalOfLines = StringUtils.countMatches(text, "\n") + 1;
+        float height = (float) (6 + (totalOfLines * 7.5));
+        Rectangle pageSize = new Rectangle(190, height);
+        Document document = new Document(pageSize, 3, 3, 3, 3);
+        try {
+            PdfWriter.getInstance(document, new FileOutputStream(file));
+            document.open();
+
+            Font font = new Font(FontFamily.COURIER, 5);
+
+            Paragraph paragraph = new Paragraph(text, font);
+            document.add(paragraph);
+
+            document.addSubject("Cupom Fiscal (CCF)");
+
+            document.addKeywords("Ferramentas utilit√°rias");
+
+            document.addCreator("FIAP");
+            document.addCreator("30SCJ");
+
+            document.addAuthor("Andr√©");
+            document.addAuthor("Eduardo");
+            document.addAuthor("Fernando");
+            document.addAuthor("Marcos");
+        } catch (FileNotFoundException | DocumentException e) {
+            throw new RuntimeException(e);
+        } finally {
+            document.close();
+        }
+    }
 
 }
